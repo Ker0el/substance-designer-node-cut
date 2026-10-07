@@ -16,7 +16,7 @@ Substance 3D Designer 的图形视图没有剪切命令，`Ctrl+X` 按下去没�
 ## 安装
 
 到 [Releases](https://github.com/Ker0el/substance-designer-node-cut/releases) 下载
-**`NodeCut-Setup_v1.0.1.exe`** 双击运行，一路「下一步」——**不用选目录**，它自己找位置。
+**`NodeCut-Setup_v1.0.2.exe`** 双击运行，一路「下一步」——**不用选目录**，它自己找位置。
 
 > ⚠️ **装完必须重启 Designer**，插件只在启动的时候加载一次。
 >
@@ -30,18 +30,23 @@ Substance 3D Designer 的图形视图没有剪切命令，`Ctrl+X` 按下去没�
 
 | 操作 | 结果 |
 |---|---|
-| 选中节点 → `Ctrl+X` | 剪切 |
+| 选中节点 → `Ctrl+X` | 剪切。**图不会断**：节点上游的连线直接接到下游，跟 Designer 自己按 `Backspace` 一样 |
 | `Ctrl+V` | 粘贴 |
 | `Ctrl+Z` | 一步撤销整个剪切 |
 | 重命名节点时 `Ctrl+X` | 还是正常的文本剪切，不会误删节点 |
 
+剪切默认走「删除并重连」——从一条链子中间摘掉一个节点，前后的连线会自动接上，
+不用再手动拖两根线。想改成「连着一块删」（Designer 的 `Delete` 行为），
+把 `plugin/node_cut/node_cut/__init__.py` 里的 `CUT_MODE` 设成 `"delete"`。
+
 ## 它是怎么做到的
 
-不自己实现复制粘贴，而是**替你按一遍 Designer 自己的 `Ctrl+C` 和 `Delete`**。
-所以剪贴板里是 Designer 原生的节点格式 —— `Ctrl+V` 正常粘贴，跨 Designer 实例也行，
-撤销行为也和手动删一模一样。Designer 本体一个字节都没改过。
+不自己实现复制粘贴，而是**替你按一遍 Designer 自己的 `Ctrl+C` 和 `Backspace`**
+（`Backspace` 就是 Designer 的「删除并重连」）。所以剪贴板里是 Designer 原生的节点格式 ——
+`Ctrl+V` 正常粘贴，跨 Designer 实例也行，撤销行为也和手动删一模一样。
+Designer 本体一个字节都没改过。
 
-只有在确认 Designer 真的往剪贴板写了东西之后，插件才会按 `Delete`；
+只有在确认 Designer 真的往剪贴板写了东西之后，插件才会按 `Backspace`；
 复制没成功就**什么都不删**，节点原样保留。
 
 ## 卸载
@@ -78,6 +83,9 @@ Windows · Substance 3D Designer 14.1+（测试于 16.0.6）·
 # 打安装包（需要 Inno Setup 6）
 cd installer && python stage.py && python mkrtf.py && "ISCC.exe" node_cut.iss
 ```
+
+`plugin/node_cut/node_cut/__init__.py` 顶部是可调项：`SHORTCUT`（默认 `Ctrl+X`）、
+`CUT_MODE`（`relink` / `delete`）、`SHOW_TOOLBAR_BUTTON`、`SHORTCUT_CONTEXT`。
 
 `installer/说明.txt` 是安装向导说明页的唯一来源，**别直接编辑 `说明.rtf`**。
 

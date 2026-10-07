@@ -212,6 +212,31 @@ seq = keys.clipboard_sequence()
 check("clipboard_sequence() returns a number", isinstance(seq, int) and seq > 0, seq)
 check("empty injection is a no-op", keys._send([]) == 0)
 
+
+# --- what Ctrl+X injects after the copy -------------------------------------
+# The delete half has to be Backspace: that is the key Designer binds to
+# "Delete and relink", so the chain behind the removed node stays connected.
+# Capture the sequences instead of sending them.
+captured = []
+originalSend = keys._send
+keys._send = lambda sequence: captured.append(sequence) or 0
+try:
+    keys.inject_backspace()
+    keys.inject_delete()
+finally:
+    keys._send = originalSend
+
+check("backspace is down/up and NOT an extended key",
+      captured[0] == [(keys.VK_BACK, False, False), (keys.VK_BACK, True, False)],
+      captured[0])
+check("delete is down/up and flagged extended",
+      captured[1] == [(keys.VK_DELETE, False, True), (keys.VK_DELETE, True, True)],
+      captured[1])
+check("default CUT_MODE resolves to Backspace (delete and relink)",
+      node_cut.CUT_MODE == "relink"
+      and node_cut._DELETE_SELECTION is keys.inject_backspace,
+      "%s -> %s" % (node_cut.CUT_MODE, node_cut._DELETE_SELECTION_NAME))
+
 uiMgrQt.mainWindow.close()
 
 print()

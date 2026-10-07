@@ -1,9 +1,14 @@
 """Win32 helpers: keyboard injection and clipboard sequence probing.
 
-The plugin replays the two keystrokes Designer already understands (Ctrl+C and
-Delete) instead of reimplementing node copy/paste. Injected input goes through
-the normal system input queue, so Designer handles them exactly as if you had
-typed them yourself - same clipboard format, same undo behaviour.
+The plugin replays the two keystrokes Designer already understands (Ctrl+C plus
+a delete key) instead of reimplementing node copy/paste. Injected input goes
+through the normal system input queue, so Designer handles them exactly as if
+you had typed them yourself - same clipboard format, same undo behaviour.
+
+The delete half is Backspace, which Designer binds to "Delete and relink": the
+node goes away but its primary input connection is carried across, so pulling a
+node out of the middle of a chain leaves the chain wired. Delete - which
+removes the links with it - is kept here for the plugin's CUT_MODE = "delete".
 
 Input events are inserted into the queue in order, so a batch is processed
 before anything sent in a later batch. That is what lets us guarantee the copy
@@ -21,6 +26,7 @@ KEYEVENTF_EXTENDEDKEY = 0x0001
 
 VK_CONTROL = 0x11
 VK_DELETE = 0x2E
+VK_BACK = 0x08
 VK_C = 0x43
 
 
@@ -114,9 +120,27 @@ def inject_ctrl_c():
 
 
 def inject_delete():
+    """Delete - removes the selection along with its links.
+
+    Delete is an extended key, so it needs KEYEVENTF_EXTENDEDKEY; without that
+    flag it arrives as the numpad Delete on some layouts.
+    """
     return _send([
         (VK_DELETE, False, True),
         (VK_DELETE, True, True),
+    ])
+
+
+def inject_backspace():
+    """Backspace - Designer's "Delete and relink".
+
+    The node goes away but its primary input connection is carried over to
+    whatever it was feeding. Unlike Delete this is not an extended key, so the
+    flag stays off.
+    """
+    return _send([
+        (VK_BACK, False, False),
+        (VK_BACK, True, False),
     ])
 
 

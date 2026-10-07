@@ -12,11 +12,11 @@
 
 Substance 3D Designer has no Cut command for graph nodes — `Ctrl+X` does nothing, and the
 shortcut editor only lets you bind *node creation* keys. This plugin turns `Ctrl+X` into
-copy-then-delete.
+copy, then "delete and relink".
 
 ## Install
 
-Download **`NodeCut-Setup_v1.0.1.exe`** from
+Download **`NodeCut-Setup_v1.0.2.exe`** from
 [Releases](https://github.com/Ker0el/substance-designer-node-cut/releases) and run it —
 click Next a few times, there is **no folder to pick**, it finds the right one itself.
 
@@ -33,20 +33,25 @@ Installing by hand works too: copy the `plugin/node_cut` folder into
 
 | Action | Result |
 |---|---|
-| Select nodes → `Ctrl+X` | Cut |
+| Select nodes → `Ctrl+X` | Cut. **The graph stays wired** — the node's upstream is reconnected to its downstream, exactly like pressing `Backspace` in Designer |
 | `Ctrl+V` | Paste |
 | `Ctrl+Z` | Undo the whole cut in one step |
 | `Ctrl+X` while renaming a node | Still a plain text cut — no nodes are touched |
 
+Cutting defaults to "delete and relink": pull a node out of the middle of a chain and the
+chain closes up behind it, so there are no links to redraw by hand. To delete the links
+along with the node instead (Designer's `Delete`), set `CUT_MODE = "delete"` at the top of
+`plugin/node_cut/node_cut/__init__.py`.
+
 ## How it works
 
 It does not reimplement copy/paste. It **replays Designer's own `Ctrl+C` followed by its own
-`Delete`**, so the clipboard ends up in Designer's native node format: `Ctrl+V` pastes
-normally, even between Designer instances, and undo behaves exactly like deleting by hand.
-Nothing inside Designer is modified.
+`Backspace`** (which is Designer's "Delete and relink"), so the clipboard ends up in
+Designer's native node format: `Ctrl+V` pastes normally, even between Designer instances,
+and undo behaves exactly like deleting by hand. Nothing inside Designer is modified.
 
-`Delete` is only sent once Designer has actually written to the clipboard; if the copy does
-not happen, **nothing is deleted**.
+`Backspace` is only sent once Designer has actually written to the clipboard; if the copy
+does not happen, **nothing is deleted**.
 
 ## Uninstall
 

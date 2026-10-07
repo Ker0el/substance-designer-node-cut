@@ -5,13 +5,18 @@ only covers node *creation* keys, and the graph menu offers Copy, Delete and
 "Delete and relink" but no Cut. So this plugin owns the Ctrl+X key and replays
 the two keystrokes Designer already understands, in order:
 
-    Ctrl+C   (Designer's own "Copy selection", so the clipboard is filled with
-              its native node format and a later Ctrl+V pastes normally)
-    Delete   (Designer's own "Delete selection", so undo works as usual)
+    Ctrl+C     (Designer's own "Copy selection", so the clipboard is filled
+                with its native node format and a later Ctrl+V pastes normally)
+    Backspace  (Designer's own "Delete and relink", so pulling a node out of
+                the middle of a chain leaves that chain wired - undo works as
+                usual)
+
+Set CUT_MODE to "delete" to replay Delete instead, which takes the links with
+it.
 
 The replay is done with real injected input rather than synthetic events, so
-Designer handles it exactly like you typing it. Before the Delete is sent the
-plugin waits for the clipboard sequence number to change; if Designer never
+Designer handles it exactly like you typing it. Before the delete key is sent
+the plugin waits for the clipboard sequence number to change; if Designer never
 wrote to the clipboard, nothing is deleted.
 """
 
@@ -24,7 +29,7 @@ from PySide6 import QtCore, QtGui, QtSvg, QtWidgets
 
 from sd.api.qtforpythonuimgrwrapper import QtForPythonUIMgrWrapper
 
-from .keys import clipboard_sequence, inject_ctrl_c, inject_delete
+from .keys import clipboard_sequence, inject_backspace, inject_ctrl_c, inject_delete
 
 # ---------------------------------------------------------------------------
 # Settings
@@ -32,6 +37,14 @@ from .keys import clipboard_sequence, inject_ctrl_c, inject_delete
 
 SHORTCUT = "Ctrl+X"
 SHOW_TOOLBAR_BUTTON = True
+
+# What Ctrl+X leaves behind once the copy has landed:
+#   "relink" - replay Backspace, Designer's "Delete and relink". The node goes
+#              away but the graph stays wired: whatever fed it now feeds what it
+#              used to feed. This is what a cut is usually for - pulling a node
+#              out of a chain without having to re-drag two links afterwards.
+#   "delete" - replay Delete. The node and its links go together, leaving a gap.
+CUT_MODE = "relink"
 
 # "widget" scopes Ctrl+X to the graph view itself: plain text cut keeps working
 # while you rename a node or edit a value field. Switch to "window" only if the
@@ -44,8 +57,13 @@ PRE_INJECT_DELAY_MS = 40
 COPY_TIMEOUT_MS = 2500
 POLL_INTERVAL_MS = 25
 
+# Resolved once: CUT_MODE never changes at runtime.
+_DELETE_SELECTION = inject_delete if CUT_MODE == "delete" else inject_backspace
+_DELETE_SELECTION_NAME = ("Delete" if CUT_MODE == "delete"
+                          else "Backspace (delete and relink)")
+
 PLUGIN_NAME = "Node Cut"
-PLUGIN_VERSION = "1.0.1"
+PLUGIN_VERSION = "1.0.2"
 
 # ---------------------------------------------------------------------------
 # Logging - a file next to the plugin, plus Designer's own runtime log
@@ -169,7 +187,11 @@ def _focusInside(graphView):
 
 
 def _doCut(*_triggeredArg, graphViewID, mainWindow, uiMgrQt, requireFocus=True):
-    """Copy, wait for the clipboard, then delete."""
+    """Copy, wait for the clipboard, then delete the selection.
+
+    The delete half is whichever key CUT_MODE picked - Backspace ("delete and
+    relink") by default, so the graph stays wired behind the removed node.
+    """
     log = getLogger()
 
     # Only meaningful when the graph view is the thing under the cursor. Qt
@@ -199,9 +221,10 @@ def _doCut(*_triggeredArg, graphViewID, mainWindow, uiMgrQt, requireFocus=True):
 
     def pollForCopy():
         if clipboard_sequence() != sequenceBefore:
-            log.info("Ctrl+X: clipboard updated after %d ms -> deleting",
-                     deadline.elapsed())
-            inject_delete()
+            log.info("Ctrl+X: clipboard updated after %d ms -> removing "
+                     "selection with %s", deadline.elapsed(),
+                     _DELETE_SELECTION_NAME)
+            _DELETE_SELECTION()
             return
         if deadline.elapsed() >= COPY_TIMEOUT_MS:
             log.warning(
