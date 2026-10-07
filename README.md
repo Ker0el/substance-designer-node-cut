@@ -8,9 +8,9 @@
 
 > Substance 3D Designer has no Cut command for graph nodes — `Ctrl+X` does nothing, and
 > Preferences → Shortcuts can only bind *node creation* keys. This plugin gives `Ctrl+X`
-> the standard copy-then-delete behaviour. It replays Designer's own `Ctrl+C` and `Delete`
-> through real injected input, so the clipboard ends up in Designer's native node format
-> and `Ctrl+V` / `Ctrl+Z` behave exactly as usual.
+> the standard copy-then-delete behaviour by replaying Designer's own `Ctrl+C` followed by
+> its own `Delete`, so the clipboard ends up in Designer's native node format and
+> `Ctrl+V` / `Ctrl+Z` behave exactly as usual.
 
 ![The Node Cut button in the graph view toolbar](docs/graph-toolbar.png)
 
@@ -82,24 +82,26 @@ python install.py
 
 ### 工作原理
 
+Designer 自己是有「复制」和「删除」的 —— 插件做的是把这两个动作按顺序替用户按一遍：
+
 ```
-Ctrl+X  →  注入一次真实的 Ctrl+C  →  等剪贴板真的被写入  →  注入一次真实的 Delete
+Ctrl+X  →  按一次 Ctrl+C  →  等剪贴板真的被写入  →  按一次 Delete
 ```
 
-关键在于**没有自己实现节点复制粘贴**。两个键都是用 `SendInput` 注入的**真实系统输入**，
-Designer 收到后走的是它自己原本的逻辑：
+关键在于**没有自己实现节点复制粘贴**，也没有碰 Designer 的任何内部状态。走的是
+Windows 标准的键盘输入通道，Designer 收到的是正常按键，因此用的还是它自己原本的逻辑：
 
 - 复制：剪贴板里是 Designer 原生的节点格式，所以 `Ctrl+V` 能正常粘贴，跨窗口、跨 Designer 实例也都成立。
 - 删除：Designer 自己的「Delete selection」命令，所以撤销行为和手动删一模一样。
 
-插件没有读写 Designer 的任何内部状态，没有自己序列化节点，也没有替换任何文件。
+插件没有自己序列化节点，也没有替换任何文件。
 
-注入的按键是在 Designer 的事件循环里排队的，**顺序有保证** —— 复制一定发生在删除之前。
+两次按键按顺序进入事件队列，**顺序有保证** —— 复制一定发生在删除之前。
 
 ### 它不会删掉你复制不出来的东西
 
-注入 `Ctrl+C` 之后，插件会盯着 Windows 的**剪贴板序号**。只有确认 Designer 真的往剪贴板写了东西，
-才会注入 `Delete`；超时没等到就**什么都不删**，节点原样保留，同时弹一次提示并写进日志。
+发出 `Ctrl+C` 之后，插件会盯着 Windows 的**剪贴板序号**。只有确认 Designer 真的往剪贴板写了东西，
+才会按下 `Delete`；超时没等到就**什么都不删**，节点原样保留，同时弹一次提示并写进日志。
 
 所以要出问题也只会是「按了没反应」，不会变成「节点没了但剪贴板是空的」。
 
@@ -112,7 +114,7 @@ Designer 收到后走的是它自己原本的逻辑：
 | `SHORTCUT` | `"Ctrl+X"` | 想换别的键改这里。 |
 | `SHORTCUT_CONTEXT` | `"widget"` | `"widget"` = 只有焦点在图形视图里才响应；改成 `"window"` 则整个 Designer 窗口内都响应。 |
 | `SHOW_TOOLBAR_BUTTON` | `True` | 改成 `False` 就不往工具栏加剪刀按钮。 |
-| `PRE_INJECT_DELAY_MS` | `40` | 注入 Ctrl+C 前先等一会儿，让用户自己的按键先落地。 |
+| `PRE_INJECT_DELAY_MS` | `40` | 按下 Ctrl+C 之前先等一会儿，让用户自己的按键先落地。 |
 | `COPY_TIMEOUT_MS` | `2500` | 等剪贴板写入的超时时间。 |
 
 ### 日志与排查
@@ -206,11 +208,11 @@ only lets you bind *node creation* keys — graph operations cannot be bound at 
 
 This plugin gives `Ctrl+X` the standard copy-then-delete behaviour.
 
-**How it works** — it does not reimplement node copy/paste. It injects a real `Ctrl+C`
-followed by a real `Delete`, so Designer's own copy and delete commands run: the clipboard
-ends up in Designer's native node format (so `Ctrl+V` pastes normally, even across
-Designer instances), and `Ctrl+Z` undoes the whole cut in one step. Nothing inside
-Designer is modified.
+**How it works** — it does not reimplement node copy/paste. It replays a `Ctrl+C` followed
+by a `Delete`, so Designer's own copy and delete commands run: the clipboard ends up in
+Designer's native node format (so `Ctrl+V` pastes normally, even across Designer
+instances), and `Ctrl+Z` undoes the whole cut in one step. Nothing inside Designer is
+modified.
 
 **Safety** — the plugin only sends `Delete` after Windows' clipboard sequence number
 confirms Designer actually wrote to the clipboard. If the copy fails, nothing is deleted.
