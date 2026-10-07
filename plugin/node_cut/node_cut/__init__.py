@@ -29,7 +29,8 @@ from PySide6 import QtCore, QtGui, QtSvg, QtWidgets
 
 from sd.api.qtforpythonuimgrwrapper import QtForPythonUIMgrWrapper
 
-from .keys import clipboard_sequence, inject_backspace, inject_ctrl_c, inject_delete
+from .keys import (clipboard_sequence, inject_backspace, inject_ctrl_c,
+                   inject_ctrl_release, inject_delete)
 
 # ---------------------------------------------------------------------------
 # Settings
@@ -63,7 +64,7 @@ _DELETE_SELECTION_NAME = ("Delete" if CUT_MODE == "delete"
                           else "Backspace (delete and relink)")
 
 PLUGIN_NAME = "Node Cut"
-PLUGIN_VERSION = "1.0.3"
+PLUGIN_VERSION = "1.0.4"
 
 # ---------------------------------------------------------------------------
 # Logging - a file next to the plugin, plus Designer's own runtime log
@@ -247,11 +248,19 @@ def _doCut(*_triggeredArg, graphViewID, mainWindow, uiMgrQt, requireFocus=True):
 
     if selected == 0:
         # A link, or something else the API cannot name. There is nothing to
-        # put on the clipboard, so skip the copy step. Plain Delete rather
-        # than Backspace: "delete and relink" has nothing to relink when the
-        # selected thing is a wire. With no selection at all this is a no-op.
-        log.info("Ctrl+X: no nodes selected %s, Qt scene items=%s -> Delete",
-                 counts, _sceneSelectedCount(graphView))
+        # put on the clipboard, so the copy step has nothing to do. Plain
+        # Delete rather than Backspace: "delete and relink" has nothing to
+        # relink when the selected thing is a wire.
+        #
+        # The lone Ctrl-up is not optional. The user is still holding Ctrl from
+        # their Ctrl+X, and a Delete injected under a held Ctrl arrives as
+        # Ctrl+Delete, which Designer ignores. The copy path gets this for free
+        # because inject_ctrl_c() ends with a Ctrl-up; this branch has to ask.
+        focus = QtWidgets.QApplication.focusWidget()
+        log.info("Ctrl+X: no nodes selected %s, Qt scene items=%s -> Delete "
+                 "(focus=%s)", counts, _sceneSelectedCount(graphView),
+                 type(focus).__name__ if focus is not None else None)
+        inject_ctrl_release()
         QtCore.QTimer.singleShot(PRE_INJECT_DELAY_MS, inject_delete)
         return
 

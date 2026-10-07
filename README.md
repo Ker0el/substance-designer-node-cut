@@ -16,7 +16,7 @@ Substance 3D Designer 的图形视图没有剪切命令，`Ctrl+X` 按下去没�
 ## 安装
 
 到 [Releases](https://github.com/Ker0el/substance-designer-node-cut/releases) 下载
-**`NodeCut-Setup_v1.0.3.exe`** 双击运行，一路「下一步」——**不用选目录**，它自己找位置。
+**`NodeCut-Setup_v1.0.4.exe`** 双击运行，一路「下一步」——**不用选目录**，它自己找位置。
 
 > ⚠️ **装完必须重启 Designer**，插件只在启动的时候加载一次。
 >

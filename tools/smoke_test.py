@@ -226,6 +226,7 @@ keys._send = lambda sequence: captured.append(sequence) or 0
 try:
     keys.inject_backspace()
     keys.inject_delete()
+    keys.inject_ctrl_release()
 finally:
     keys._send = originalSend
 
@@ -235,6 +236,8 @@ check("backspace is down/up and NOT an extended key",
 check("delete is down/up and flagged extended",
       captured[1] == [(keys.VK_DELETE, False, True), (keys.VK_DELETE, True, True)],
       captured[1])
+check("ctrl release is a lone Ctrl-up",
+      captured[2] == [(keys.VK_CONTROL, True, False)], captured[2])
 check("default CUT_MODE resolves to Backspace (delete and relink)",
       node_cut.CUT_MODE == "relink"
       and node_cut._DELETE_SELECTION is keys.inject_backspace,
@@ -302,12 +305,15 @@ try:
     check("empty scene selection injects nothing", injected == [], injected)
 
     # A wire is selected: the API sees no nodes, Qt sees one selected item.
+    # Ctrl has to be released first, or the Delete lands as Ctrl+Delete, which
+    # Designer ignores - that is what the user is still holding from Ctrl+X.
     linkView._scene.items.append(object())
     node_cut._doCut(graphViewID=99, mainWindow=uiMgrQt.mainWindow,
                     uiMgrQt=uiMgrQt, requireFocus=False)
     spin(150)
-    check("a selected connection injects a plain Delete",
-          injected == [[(keys.VK_DELETE, False, True), (keys.VK_DELETE, True, True)]],
+    check("a selected connection releases Ctrl, then injects a plain Delete",
+          injected == [[(keys.VK_CONTROL, True, False)],
+                       [(keys.VK_DELETE, False, True), (keys.VK_DELETE, True, True)]],
           injected)
 
     # No reachable scene: still attempt the delete rather than bailing out.
@@ -316,7 +322,7 @@ try:
                     uiMgrQt=uiMgrQt, requireFocus=False)
     spin(150)
     check("view without a scene still attempts Delete",
-          len(injected) == 1 and injected[0][0][0] == keys.VK_DELETE, injected)
+          len(injected) == 2 and injected[1][0][0] == keys.VK_DELETE, injected)
 finally:
     keys._send = originalSend
     node_cut._installed.pop(99, None)

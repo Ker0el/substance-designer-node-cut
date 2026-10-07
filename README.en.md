@@ -16,7 +16,7 @@ copy, then "delete and relink".
 
 ## Install
 
-Download **`NodeCut-Setup_v1.0.3.exe`** from
+Download **`NodeCut-Setup_v1.0.4.exe`** from
 [Releases](https://github.com/Ker0el/substance-designer-node-cut/releases) and run it —
 click Next a few times, there is **no folder to pick**, it finds the right one itself.
 

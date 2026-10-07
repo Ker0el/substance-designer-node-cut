@@ -119,6 +119,17 @@ def inject_ctrl_c():
     ])
 
 
+def inject_ctrl_release():
+    """A lone Ctrl-up, for paths that do not go through inject_ctrl_c().
+
+    The user is still holding Ctrl from their own Ctrl+X when we react, so
+    anything injected right after arrives as Ctrl+<key>: a Delete would land as
+    Ctrl+Delete, which Designer ignores. inject_ctrl_c() ends with this same
+    event, which is why the copy path never had the problem.
+    """
+    return _send([(VK_CONTROL, True, False)])
+
+
 def inject_delete():
     """Delete - removes the selection along with its links.
 

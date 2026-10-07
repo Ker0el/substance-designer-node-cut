@@ -1,4 +1,4 @@
-Node Cut 1.0.3
+Node Cut 1.0.4
 Substance 3D Designer 的 Ctrl+X 剪切插件
 
 本插件只包含插件文件，不含 Substance 3D Designer 本体，也不包含任何破解或授权文件。
