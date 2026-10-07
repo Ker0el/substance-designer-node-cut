@@ -40,6 +40,18 @@ Substance 3D Designer 的图形视图**没有剪切**，这不是没找到，是
 
 **要求**：Windows，Substance 3D Designer 14.1 或更新。
 
+**方式一：用安装包（推荐）**
+
+到 [Releases](https://github.com/Ker0el/substance-designer-node-cut/releases) 下载 `NodeCut-Setup_v1.0.1.exe` 双击运行，一路「下一步」即可：
+
+- **不需要选目录** —— 安装程序自己找位置，装到 `%USERPROFILE%\Documents\Adobe\Adobe Substance 3D Designer\python\sduserplugins\node_cut`；
+- 会从注册表检测 Designer 装在哪儿、有没有正在运行；正在运行会问你关不关，**默认不关**，免得丢掉没保存的工程；
+- 卸载走「设置 - 应用」，能删干净 —— 插件运行期自己写的 `runtime.log` 和 Python 生成的 `__pycache__` 也一起清掉。
+
+装完**必须重新启动 Designer**，插件只在启动的时候加载一次。
+
+**方式二：手动拷目录**
+
 1. 把 `plugin/node_cut` 整个文件夹拷到 Designer 的用户插件目录：
 
    ```
@@ -53,13 +65,11 @@ Substance 3D Designer 的图形视图**没有剪切**，这不是没找到，是
    ...\sduserplugins\node_cut\node_cut\__init__.py
    ```
 
-2. **完全退出并重启 Designer。**
-
-   Designer 只在启动时扫一次插件目录。装之前请先存盘。
+2. **完全退出并重启 Designer。** 装之前请先存盘。
 
 3. 打开任意一个 Substance 图形，工具栏末尾应该多出一个**剪刀按钮**。看到它就说明插件加载成功了。
 
-如果你是从仓库直接用的，也可以跑脚本自动部署：
+也可以跑脚本自动部署：
 
 ```
 python install.py
@@ -172,7 +182,14 @@ plugin/node_cut/          插件本体，拷进 sduserplugins 的就是这个文
     node_cut/__init__.py  插件主体：绑快捷键、选中判定、复制-等待-删除流程
     node_cut/keys.py      Windows 键盘输入 + 剪贴板序号
     makepackage.py        打 .sdplugin 包用（Adobe 官方模板原样）
-install.py                把插件部署到 sduserplugins
+install.py                把插件部署到 sduserplugins（方式二 / 开发用）
+installer/                Inno Setup 安装包源码（方式一）
+    node_cut.iss          安装脚本
+    说明.txt              向导里的说明页（唯一来源）
+    说明.rtf              由 说明.txt 生成，Inno 读这个
+    mkrtf.py              生成 说明.rtf，把 B 站链接变成可点的
+    stage.py              把插件运行时要的文件挑进 payload\
+    ChineseSimplified.isl 中文向导（第三方翻译，MIT）
 tools/smoke_test.py       离线自测，不需要启动 Designer
 tools/exe_strings.py      从 Designer.exe 里挖菜单字符串（当初用来确认没有 Cut）
 docs/graph-toolbar.png    README 配图
@@ -198,6 +215,24 @@ docs/graph-toolbar.png    README 配图
 cd plugin/node_cut && python makepackage.py   # 产物在 build/
 ```
 
+**打安装包**（先装 [Inno Setup 6](https://jrsoftware.org/isdl.php)）：
+
+```
+cd installer
+python stage.py                      # 把插件运行时要的文件挑进 payload\
+python mkrtf.py                      # 说明.txt -> 说明.rtf
+"ISCC.exe" node_cut.iss              # 产物在 output\NodeCut-Setup_v1.0.1.exe
+```
+
+`说明.txt` 是说明页的唯一来源，**不要直接编辑 `说明.rtf`**。
+
+改完 `.iss` 一定要真装一遍 —— Inno 的 `[Code]` 是运行期才执行的，语法对了也会在安装时抛异常，
+而且报错**只写进 `/LOG=` 的日志**（日志是 UTF-8 with BOM，按 UTF-16 解会满屏乱码）：
+
+```
+NodeCut-Setup_v1.0.1.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=install.log
+```
+
 ---
 
 ## English
@@ -219,13 +254,20 @@ confirms Designer actually wrote to the clipboard. If the copy fails, nothing is
 
 **Install** (Windows, Designer 14.1+)
 
+Easiest: grab `NodeCut-Setup_v1.0.1.exe` from
+[Releases](https://github.com/Ker0el/substance-designer-node-cut/releases) and run it —
+it finds the plugin folder by itself, detects where Designer is installed, offers to close
+Designer if it is running, and uninstalls cleanly from "Apps & features".
+
+Or install by hand:
+
 1. Copy `plugin/node_cut` into
    `%USERPROFILE%\Documents\Adobe\Adobe Substance 3D Designer\python\sduserplugins\`
    so that the file ends up at `...\sduserplugins\node_cut\pluginInfo.json`.
 2. Fully restart Designer — the plugin folder is only scanned at startup.
 3. A scissors button appears at the end of the graph view toolbar when it has loaded.
 
-Or run `python install.py`, which deploys it and locates your real Documents folder.
+`python install.py` does the same thing, and locates your real Documents folder for you.
 
 **Usage** — select nodes, press `Ctrl+X`, paste with `Ctrl+V`, undo with `Ctrl+Z`.
 The shortcut is scoped to the graph view, so `Ctrl+X` still cuts *text* while you
