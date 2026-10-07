@@ -170,7 +170,7 @@ Windows 标准的键盘输入通道，Designer 收到的是正常按键，因此
 plugin/node_cut/          插件本体，拷进 sduserplugins 的就是这个文件夹
     pluginInfo.json       插件元数据
     node_cut/__init__.py  插件主体：绑快捷键、选中判定、复制-等待-删除流程
-    node_cut/keys.py      SendInput 注入 + 剪贴板序号
+    node_cut/keys.py      Windows 键盘输入 + 剪贴板序号
     makepackage.py        打 .sdplugin 包用（Adobe 官方模板原样）
 install.py                把插件部署到 sduserplugins
 tools/smoke_test.py       离线自测，不需要启动 Designer
@@ -180,7 +180,7 @@ docs/graph-toolbar.png    README 配图
 
 ### 开发
 
-**离线自测**（用 Designer 自带的 Python，不需要 Designer 在跑，也不会注入任何按键）：
+**离线自测**（用 Designer 自带的 Python，不需要 Designer 在跑，也不会真的按任何键）：
 
 ```
 "<Designer安装目录>\plugins\pythonsdk\python.exe" tools/smoke_test.py
