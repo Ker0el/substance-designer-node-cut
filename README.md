@@ -16,7 +16,7 @@ Substance 3D Designer 的图形视图没有剪切命令，`Ctrl+X` 按下去没�
 ## 安装
 
 到 [Releases](https://github.com/Ker0el/substance-designer-node-cut/releases) 下载
-**`NodeCut-Setup_v1.0.2.exe`** 双击运行，一路「下一步」——**不用选目录**，它自己找位置。
+**`NodeCut-Setup_v1.0.3.exe`** 双击运行，一路「下一步」——**不用选目录**，它自己找位置。
 
 > ⚠️ **装完必须重启 Designer**，插件只在启动的时候加载一次。
 >
@@ -31,6 +31,7 @@ Substance 3D Designer 的图形视图没有剪切命令，`Ctrl+X` 按下去没�
 | 操作 | 结果 |
 |---|---|
 | 选中节点 → `Ctrl+X` | 剪切。**图不会断**：节点上游的连线直接接到下游，跟 Designer 自己按 `Backspace` 一样 |
+| 选中**连线** → `Ctrl+X` | 删掉这根线 |
 | `Ctrl+V` | 粘贴 |
 | `Ctrl+Z` | 一步撤销整个剪切 |
 | 重命名节点时 `Ctrl+X` | 还是正常的文本剪切，不会误删节点 |
@@ -48,6 +49,10 @@ Designer 本体一个字节都没改过。
 
 只有在确认 Designer 真的往剪贴板写了东西之后，插件才会按 `Backspace`；
 复制没成功就**什么都不删**，节点原样保留。
+
+**选中的是连线时走另一条路**：Designer 的 Python 接口里连线不算「图对象」
+（`SDGraphObject` 的注释写明了「既不是节点也不是连线」），探测不到，
+所以这种情况由插件直接发一个 `Delete`，不经过剪贴板。
 
 ## 卸载
 

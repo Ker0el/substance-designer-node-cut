@@ -16,7 +16,7 @@ copy, then "delete and relink".
 
 ## Install
 
-Download **`NodeCut-Setup_v1.0.2.exe`** from
+Download **`NodeCut-Setup_v1.0.3.exe`** from
 [Releases](https://github.com/Ker0el/substance-designer-node-cut/releases) and run it —
 click Next a few times, there is **no folder to pick**, it finds the right one itself.
 
@@ -34,6 +34,7 @@ Installing by hand works too: copy the `plugin/node_cut` folder into
 | Action | Result |
 |---|---|
 | Select nodes → `Ctrl+X` | Cut. **The graph stays wired** — the node's upstream is reconnected to its downstream, exactly like pressing `Backspace` in Designer |
+| Select a **connection** → `Ctrl+X` | Removes that wire |
 | `Ctrl+V` | Paste |
 | `Ctrl+Z` | Undo the whole cut in one step |
 | `Ctrl+X` while renaming a node | Still a plain text cut — no nodes are touched |
@@ -52,6 +53,10 @@ and undo behaves exactly like deleting by hand. Nothing inside Designer is modif
 
 `Backspace` is only sent once Designer has actually written to the clipboard; if the copy
 does not happen, **nothing is deleted**.
+
+**A selected connection takes a different route.** Designer's Python API cannot describe
+one — `SDGraphObject` is documented as "an object in a graph that is neither a node nor a
+connection" — so there is nothing to copy. The plugin sends a plain `Delete` instead.
 
 ## Uninstall
 

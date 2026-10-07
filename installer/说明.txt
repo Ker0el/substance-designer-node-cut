@@ -1,4 +1,4 @@
-Node Cut 1.0.2
+Node Cut 1.0.3
 Substance 3D Designer 的 Ctrl+X 剪切插件
 
 本插件只包含插件文件，不含 Substance 3D Designer 本体，也不包含任何破解或授权文件。
@@ -17,6 +17,7 @@ Substance 3D Designer 的图形视图没有剪切命令，按 Ctrl+X 没反应�
 在图形视图里选中节点，Ctrl+X 剪切，Ctrl+V 粘贴，Ctrl+Z 撤销。
 剪切不会把图断开：从链子中间摘掉一个节点，它上游的连线会直接接到下游，
 跟 Designer 自己按 Backspace 的效果一样。
+选中一根连线按 Ctrl+X，就是把这根线删掉。
 工具栏末尾会多出一个剪刀按钮，看到它就说明装好了。
 重命名节点时按 Ctrl+X 还是正常的文本剪切，不会误删节点。
 

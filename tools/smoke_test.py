@@ -9,6 +9,7 @@ Designer. It never injects keystrokes into Designer.
 import logging
 import os
 import sys
+import time
 import types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -102,6 +103,9 @@ class FakeUIMgrQt(object):
         self.lineEdit = QtWidgets.QLineEdit(self.graphView)
         self.lineEdit.setText("rename me")
         self.toolbarCalls = []
+        # Designer reports nodes and graph objects in two separate lists.
+        self.selectedNodes = [object(), object()]
+        self.selectedObjects = []
 
     def getCurrentGraph(self):
         return object()
@@ -113,12 +117,11 @@ class FakeUIMgrQt(object):
         return self.mainWindow
 
     def getGraphSelectedNodesFromGraphViewID(self, graphViewID):
-        return [object(), object()]
+        return self.selectedNodes
 
     def getGraphSelectedObjectsFromGraphViewID(self, graphViewID):
-        # Designer reports nodes and graph objects separately; a plain node
-        # selection shows up only in the *nodes* list.
-        return []
+        # A plain node selection shows up only in the *nodes* list.
+        return self.selectedObjects
 
     def addActionToGraphViewToolbar(self, graphViewID, action):
         self.toolbarCalls.append(action)
@@ -236,6 +239,89 @@ check("default CUT_MODE resolves to Backspace (delete and relink)",
       node_cut.CUT_MODE == "relink"
       and node_cut._DELETE_SELECTION is keys.inject_backspace,
       "%s -> %s" % (node_cut.CUT_MODE, node_cut._DELETE_SELECTION_NAME))
+
+
+# --- selected links ---------------------------------------------------------
+# Designer's Python API cannot describe a selected connection - SDGraphObject
+# is documented as "an object in a graph that is neither a node nor a
+# connection". A wire selection therefore looks like an empty selection up
+# there, and has to be picked up from Qt instead. Both routes are checked: the
+# scene probe, and the fallback for when the probe cannot reach a scene (links
+# must keep working there too).
+def spin(milliseconds):
+    deadline = time.time() + milliseconds / 1000.0
+    while time.time() < deadline:
+        app.processEvents()
+        time.sleep(0.005)
+
+
+class FakeScene(object):
+    def __init__(self):
+        self.items = []
+
+    def selectedItems(self):
+        return self.items
+
+
+class FakeSceneView(QtWidgets.QWidget):
+    """A graph view whose scene can be queried, like Designer's own."""
+
+    def __init__(self, parent=None):
+        super(FakeSceneView, self).__init__(parent)
+        self._scene = FakeScene()
+
+    def scene(self):
+        return self._scene
+
+
+check("scene probe on None is 'cannot tell'", node_cut._sceneSelectedCount(None) is None)
+check("scene probe on a plain widget is 'cannot tell'",
+      node_cut._sceneSelectedCount(QtWidgets.QWidget()) is None)
+
+sceneView = FakeSceneView(uiMgrQt.mainWindow)
+check("scene probe reads an empty scene", node_cut._sceneSelectedCount(sceneView) == 0)
+sceneView._scene.items.append(object())
+check("scene probe counts selected items", node_cut._sceneSelectedCount(sceneView) == 1)
+
+linkView = FakeSceneView(uiMgrQt.mainWindow)
+plainView = QtWidgets.QWidget(uiMgrQt.mainWindow)
+node_cut._installed[99] = {"graphView": linkView, "shortcutAction": None, "toolbarAction": None}
+node_cut._installed[98] = {"graphView": plainView, "shortcutAction": None, "toolbarAction": None}
+
+injected = []
+originalSend = keys._send
+keys._send = lambda sequence: injected.append(sequence) or 0
+try:
+    uiMgrQt.selectedNodes = []
+    uiMgrQt.selectedObjects = []
+
+    # Nothing selected anywhere - the graph must be left alone.
+    node_cut._doCut(graphViewID=99, mainWindow=uiMgrQt.mainWindow,
+                    uiMgrQt=uiMgrQt, requireFocus=False)
+    spin(150)
+    check("empty scene selection injects nothing", injected == [], injected)
+
+    # A wire is selected: the API sees no nodes, Qt sees one selected item.
+    linkView._scene.items.append(object())
+    node_cut._doCut(graphViewID=99, mainWindow=uiMgrQt.mainWindow,
+                    uiMgrQt=uiMgrQt, requireFocus=False)
+    spin(150)
+    check("a selected connection injects a plain Delete",
+          injected == [[(keys.VK_DELETE, False, True), (keys.VK_DELETE, True, True)]],
+          injected)
+
+    # No reachable scene: still attempt the delete rather than bailing out.
+    injected[:] = []
+    node_cut._doCut(graphViewID=98, mainWindow=uiMgrQt.mainWindow,
+                    uiMgrQt=uiMgrQt, requireFocus=False)
+    spin(150)
+    check("view without a scene still attempts Delete",
+          len(injected) == 1 and injected[0][0][0] == keys.VK_DELETE, injected)
+finally:
+    keys._send = originalSend
+    node_cut._installed.pop(99, None)
+    node_cut._installed.pop(98, None)
+    uiMgrQt.selectedNodes = [object(), object()]
 
 uiMgrQt.mainWindow.close()
 

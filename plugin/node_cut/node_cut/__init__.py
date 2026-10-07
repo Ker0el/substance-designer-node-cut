@@ -63,7 +63,7 @@ _DELETE_SELECTION_NAME = ("Delete" if CUT_MODE == "delete"
                           else "Backspace (delete and relink)")
 
 PLUGIN_NAME = "Node Cut"
-PLUGIN_VERSION = "1.0.2"
+PLUGIN_VERSION = "1.0.3"
 
 # ---------------------------------------------------------------------------
 # Logging - a file next to the plugin, plus Designer's own runtime log
@@ -147,6 +147,8 @@ def _selectionCounts(uiMgrQt, graphViewID):
     getGraphSelectedNodesFromGraphViewID, while comments/frames/navigation
     pins come from getGraphSelectedObjectsFromGraphViewID. Asking only the
     second one reports "nothing selected" for every node selection.
+
+    Neither list covers connections - see _sceneSelectedCount for those.
     """
     counts = {}
     for label, getter in (("nodes", "getGraphSelectedNodesFromGraphViewID"),
@@ -157,6 +159,35 @@ def _selectionCounts(uiMgrQt, graphViewID):
         except Exception as exc:
             counts[label] = "error: %s" % exc
     return counts
+
+
+def _sceneSelectedCount(graphView):
+    """How many items the graph view's Qt scene has selected, or None.
+
+    The Python API cannot describe a selected connection: SDGraphObject is
+    documented as "an object in a graph that is neither a node nor a
+    connection", and there is no counterpart for links. So a wire you clicked
+    looks exactly like an empty selection from up there.
+
+    Qt knows, though - a selected link is a selected item in the scene. This
+    is what lets Ctrl+X work on links.
+
+    None means "cannot tell" (the view is not a QGraphicsView, or has no scene
+    yet). Callers read None as "do not block", which also means links keep
+    working on builds where this probe finds nothing.
+    """
+    if graphView is None:
+        return None
+    try:
+        scene = graphView.scene()
+    except Exception:
+        return None
+    if scene is None:
+        return None
+    try:
+        return len(scene.selectedItems())
+    except Exception:
+        return None
 
 
 def _warnOnce(mainWindow, message):
@@ -189,8 +220,12 @@ def _focusInside(graphView):
 def _doCut(*_triggeredArg, graphViewID, mainWindow, uiMgrQt, requireFocus=True):
     """Copy, wait for the clipboard, then delete the selection.
 
-    The delete half is whichever key CUT_MODE picked - Backspace ("delete and
-    relink") by default, so the graph stays wired behind the removed node.
+    Two shapes of selection, two delete keys:
+
+    * nodes / comments / frames - replay Ctrl+C, wait for Designer to fill the
+      clipboard, then Backspace (or Delete, if CUT_MODE says so).
+    * a link - there is no node to copy and nothing to relink, so just replay
+      Delete. See _sceneSelectedCount for why links need their own branch.
     """
     log = getLogger()
 
@@ -205,10 +240,21 @@ def _doCut(*_triggeredArg, graphViewID, mainWindow, uiMgrQt, requireFocus=True):
 
     counts = _selectionCounts(uiMgrQt, graphViewID)
     selected = sum(n for n in counts.values() if isinstance(n, int))
-    if selected == 0:
+    if selected == 0 and _sceneSelectedCount(graphView) == 0:
         log.debug("Ctrl+X ignored: nothing selected in graph view %s %s",
                   graphViewID, counts)
         return
+
+    if selected == 0:
+        # A link, or something else the API cannot name. There is nothing to
+        # put on the clipboard, so skip the copy step. Plain Delete rather
+        # than Backspace: "delete and relink" has nothing to relink when the
+        # selected thing is a wire. With no selection at all this is a no-op.
+        log.info("Ctrl+X: no nodes selected %s, Qt scene items=%s -> Delete",
+                 counts, _sceneSelectedCount(graphView))
+        QtCore.QTimer.singleShot(PRE_INJECT_DELAY_MS, inject_delete)
+        return
+
     log.debug("Ctrl+X: selection in graph view %s %s", graphViewID, counts)
 
     sequenceBefore = clipboard_sequence()
@@ -299,7 +345,11 @@ def _installOnGraphView(graphViewID, uiMgrQt):
         _installed.pop(graphViewID, None)
 
     graphView.destroyed.connect(onDestroyed)
-    log.info("graph view %s: Ctrl+X installed", graphViewID)
+    # The class name and whether the scene probe works decide how a selected
+    # link is handled, so leave both in the log.
+    log.info("graph view %s: Ctrl+X installed (%s, Qt scene reachable=%s)",
+             graphViewID, type(graphView).__name__,
+             _sceneSelectedCount(graphView) is not None)
 
 
 def _removeAll():

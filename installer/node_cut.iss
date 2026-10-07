@@ -1,8 +1,8 @@
 ; Node Cut —— Substance 3D Designer 插件安装包
 
 #define AppName     "Node Cut"
-#define AppVer      "1.0.2"
-#define AppVerQuad  "1.0.2.0"
+#define AppVer      "1.0.3"
+#define AppVerQuad  "1.0.3.0"
 #define AppId       "{A5BFF457-8165-4116-BE28-319A7AADB237}"
 #define Publisher   "Ker0el"
 
