@@ -5,6 +5,7 @@ Substance 3D Designer 的图形视图没有剪切命令，按 Ctrl+X 没反应�
 装上本插件之后，选中节点按 Ctrl+X 就是剪切。
 
 怎么安装
+需要 Substance 3D Designer 14.1 或更高版本（本插件在 16.0.6 上测试）。
 1. 退出 Substance 3D Designer。
 2. 运行本安装包，一路「下一步」即可，不需要你选目录。
 3. 装完启动 Substance 3D Designer，打开任意一个 Substance 图形。
